@@ -141,3 +141,5 @@ export type Layer =
   | PathLayer
   | TextLayer
   | NoteLayer;
+
+export type Layers = Map<string, Layer>;
