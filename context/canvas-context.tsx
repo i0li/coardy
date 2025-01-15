@@ -1,11 +1,31 @@
-import { CanvasMode, CanvasState, Layer, Layers } from "@/types/canvas";
-import { nanoid } from "@liveblocks/core";
-import { Currency, TrainTrack } from "lucide-react";
-import { useState, FC, createContext, ReactNode } from "react";
+"use client";
+
+import {
+  CanvasMode,
+  CanvasState,
+  Color,
+  Layer,
+  Layers,
+  PencilDraftItem,
+  Point,
+} from "@/types/canvas";
+import { useState, FC, createContext, ReactNode, useContext } from "react";
 
 const MAX_HISTORY = 30;
 
 export type CanvasContextType = {
+  cursor: {
+    value: Point | null;
+    update: (point: Point | null) => void;
+  };
+  pencilDraft: {
+    value: PencilDraftItem[] | null;
+    update: (pencilDrafts: PencilDraftItem[] | null) => void;
+  };
+  penColor: {
+    value: Color | null;
+    update: (color: Color | null) => void;
+  };
   layerIds: {
     value: string[];
     push: (id: string) => void;
@@ -26,17 +46,73 @@ export type CanvasContextType = {
     value: CanvasState;
     update: (canvasState: CanvasState) => void;
   };
-  hisotory: {
+  history: {
+    value: Layers[];
     redo: () => void;
     undo: () => void;
+    canRedo: () => boolean;
+    canUndo: () => boolean;
     pause: () => void;
     resume: () => void;
   };
 };
 
-export const CanvasContext = createContext<CanvasContextType | null>(null);
+export const CanvasContext = createContext<CanvasContextType>({
+  cursor: {
+    value: null,
+    update: () => {},
+  },
+  pencilDraft: {
+    value: null,
+    update: () => {},
+  },
+  penColor: {
+    value: null,
+    update: () => {},
+  },
+  layerIds: {
+    value: [],
+    push: () => {},
+    move: () => {},
+    remove: () => {},
+  },
+  selection: {
+    value: [],
+    update: () => {},
+  },
+  layers: {
+    value: new Map(),
+    push: () => {},
+    update: () => {},
+    delete: () => {},
+  },
+  canvasState: {
+    value: {
+      mode: CanvasMode.None,
+    },
+    update: () => {},
+  },
+  history: {
+    value: [],
+    redo: () => {},
+    undo: () => {},
+    canRedo: () => {
+      return false;
+    },
+    canUndo: () => {
+      return false;
+    },
+    pause: () => {},
+    resume: () => {},
+  },
+});
 
 const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
+  const [cursor, setCursor] = useState<Point | null>(null);
+  const [pencilDraft, setPencilDraft] = useState<PencilDraftItem[] | null>(
+    null,
+  );
+  const [penColor, setPenColor] = useState<Color | null>(null);
   const [layerIds, setLayerIds] = useState<string[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
   const [layers, setLayers] = useState<Layers>(new Map());
@@ -46,6 +122,21 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [history, setHistory] = useState<Layers[]>([]);
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState<number>(0);
   const [trackHistory, setTrackHistory] = useState<boolean>(true);
+
+  //cursor
+  const updateCusor = (point: Point | null) => {
+    setCursor(point);
+  };
+
+  //pencilDraft
+  const updatePencilDraft = (pencilDrafts: PencilDraftItem[] | null) => {
+    setPencilDraft(pencilDrafts);
+  };
+
+  //penColor
+  const updatePenColor = (color: Color | null) => {
+    setPenColor(color);
+  };
 
   //layerIds
   const pushLayerId = (newLayerId: string) => {
@@ -62,11 +153,12 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
       throw new Error("Invalid index or newIndex");
     }
     const newLayerIds = layerIds;
-
-    const targetId = layerIds.slice(index, 1);
-    newLayerIds.splice(newIndex, 0, targetId[0]);
-
-    setLayerIds(newLayerIds);
+    const targetId = newLayerIds.splice(index, 1)[0];
+    setLayerIds([
+      ...newLayerIds.slice(0, newIndex),
+      targetId,
+      ...newLayerIds.slice(newIndex),
+    ]);
   };
 
   const removeLayerId = (id: string) => {
@@ -90,7 +182,7 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const updateLayer = (id: string, layer: Layer) => {
-    const updatedLayers = new Map(layers);
+    const updatedLayers = layers;
     updatedLayers.set(id, layer);
     setLayers(updatedLayers);
 
@@ -100,7 +192,7 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const deleteLayer = (id: string) => {
-    const deletedLayers = new Map(layers);
+    const deletedLayers = layers;
     deletedLayers.delete(id);
     setLayers(deletedLayers);
     addToHistory(deletedLayers);
@@ -128,7 +220,7 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const redoHistory = () => {
-    if (currentHistoryIndex >= history.length) {
+    if (!canRedoHistory) {
       return;
     }
 
@@ -136,11 +228,19 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const undoHistory = () => {
-    if (currentHistoryIndex <= 0) {
+    if (!canUndoHistory) {
       return;
     }
 
     setCurrentHistoryIndex(currentHistoryIndex - 1);
+  };
+
+  const canRedoHistory = () => {
+    return currentHistoryIndex < history.length;
+  };
+
+  const canUndoHistory = () => {
+    return currentHistoryIndex > 0;
   };
 
   const pauseHistory = () => {
@@ -154,6 +254,18 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <CanvasContext.Provider
       value={{
+        cursor: {
+          value: cursor,
+          update: updateCusor,
+        },
+        pencilDraft: {
+          value: pencilDraft,
+          update: updatePencilDraft,
+        },
+        penColor: {
+          value: penColor,
+          update: updatePenColor,
+        },
         layerIds: {
           value: layerIds,
           push: pushLayerId,
@@ -174,9 +286,12 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
           value: canvasState,
           update: updateCanvasState,
         },
-        hisotory: {
+        history: {
+          value: history,
           redo: redoHistory,
           undo: undoHistory,
+          canRedo: canRedoHistory,
+          canUndo: canUndoHistory,
           pause: pauseHistory,
           resume: resumeHistory,
         },
@@ -188,3 +303,11 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 export default CanvasProvider;
+
+export const useCanvasContext = (): CanvasContextType => {
+  const context = useContext(CanvasContext);
+  if (!context) {
+    throw new Error("useCanvasContext must be used within a CanvasContext");
+  }
+  return context;
+};

@@ -1,9 +1,13 @@
-import { useMutation } from "@liveblocks/react/suspense";
+import { useCanvasContext } from "@/context/canvas-context";
+import { useCallback } from "react";
 
 export const useUnselectLayers = () => {
-  return useMutation(({ self, setMyPresence }) => {
-    if (self.presence.selection.length > 0) {
-      setMyPresence({ selection: [] }, { addToHistory: true });
+  const { selection, history } = useCanvasContext();
+
+  return useCallback(() => {
+    if (selection.value.length > 0) {
+      selection.update([]);
+      history.resume();
     }
-  }, []);
+  }, [selection.value, history.value]);
 };

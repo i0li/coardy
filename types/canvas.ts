@@ -143,3 +143,4 @@ export type Layer =
   | NoteLayer;
 
 export type Layers = Map<string, Layer>;
+export type PencilDraftItem = [x: number, y: number, pressure: number];

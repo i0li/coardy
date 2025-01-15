@@ -1,27 +1,19 @@
-import { Layer, LayerType } from "@/types/canvas";
-import { useSelf, useMutation } from "@liveblocks/react/suspense";
-import { Layers } from "lucide-react";
+import { useCallback, useContext } from "react";
+import { CanvasContext } from "@/context/canvas-context";
 
 export const useDeleteLayers = () => {
-  const selection = useSelf((me) => me.presence.selection);
+  const { selection, layerIds, layers, history } = useContext(CanvasContext);
 
-  return useMutation(
-    ({ storage, setMyPresence }) => {
-      const liveLayers = storage.get("layers");
-      const liveLayerIds = storage.get("layerIds");
+  return useCallback(() => {
+    for (const id of selection.value) {
+      layers.delete(id);
 
-      for (const id of selection) {
-        liveLayers.delete(id);
-
-        const index = liveLayerIds.indexOf(id);
-
-        if (index !== -1) {
-          liveLayerIds.delete(index);
-        }
+      if (layerIds.value.includes(id)) {
+        layerIds.remove(id);
       }
+    }
 
-      setMyPresence({ selection: [] }, { addToHistory: true });
-    },
-    [selection],
-  );
+    selection.update([]);
+    history.resume();
+  }, [layers.value, selection.value, history.value, layerIds.value]);
 };
