@@ -16,10 +16,12 @@ interface SelectionToolsProps {
 }
 
 export const SelectionTools = memo(
-  ({ camera, setLastUsedColor }: SelectionToolsProps) => {
+  ({ camera, setLastUsedColor, history }: SelectionToolsProps) => {
     const { selection, layerIds, layers } = useCanvasContext();
 
     const moveToFront = useCallback(() => {
+      history.pause();
+
       const currentLayerIds = layerIds.value;
       const indices: number[] = [];
 
@@ -35,9 +37,13 @@ export const SelectionTools = memo(
           currentLayerIds.length - 1 - (indices.length - 1 - i),
         );
       }
+
+      history.resume();
     }, [layerIds.value, selection.value]);
 
     const moveToBack = useCallback(() => {
+      history.pause();
+
       const currentLayerIds = layerIds.value;
       const indices: number[] = [];
 
@@ -50,6 +56,8 @@ export const SelectionTools = memo(
       for (let i = 0; i < indices.length; i++) {
         layerIds.move(indices[i], i);
       }
+
+      history.resume();
     }, [layerIds.value, selection.value]);
 
     const setFill = useCallback(

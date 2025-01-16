@@ -9,7 +9,14 @@ import {
   PencilDraftItem,
   Point,
 } from "@/types/canvas";
-import { useState, FC, createContext, ReactNode, useContext } from "react";
+import {
+  useState,
+  FC,
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+} from "react";
 
 const MAX_HISTORY = 30;
 
@@ -144,21 +151,25 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const moveLayerId = (index: number, newIndex: number) => {
-    if (
-      index < 0 ||
-      index >= layerIds.length ||
-      newIndex < 0 ||
-      newIndex >= layerIds.length
-    ) {
-      throw new Error("Invalid index or newIndex");
-    }
-    const newLayerIds = layerIds;
-    const targetId = newLayerIds.splice(index, 1)[0];
-    setLayerIds([
-      ...newLayerIds.slice(0, newIndex),
-      targetId,
-      ...newLayerIds.slice(newIndex),
-    ]);
+    setLayerIds((prevLayerIds) => {
+      if (
+        index < 0 ||
+        index >= prevLayerIds.length ||
+        newIndex < 0 ||
+        newIndex >= prevLayerIds.length
+      ) {
+        throw new Error("Invalid index or newIndex");
+      }
+
+      const newLayerIds = [...prevLayerIds];
+      const targetId = newLayerIds.splice(index, 1)[0];
+
+      return [
+        ...newLayerIds.slice(0, newIndex),
+        targetId,
+        ...newLayerIds.slice(newIndex),
+      ];
+    });
   };
 
   const removeLayerId = (id: string) => {
@@ -205,7 +216,7 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   // history
   const addToHistory = (layers: Layers) => {
-    const newHistory = history;
+    const newHistory = [...history];
     newHistory.splice(
       currentHistoryIndex,
       history.length - 1 - currentHistoryIndex,
@@ -223,16 +234,14 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
     if (!canRedoHistory) {
       return;
     }
-
-    setCurrentHistoryIndex(currentHistoryIndex + 1);
+    setCurrentHistoryIndex((preHistoryIndex) => preHistoryIndex + 1);
   };
 
   const undoHistory = () => {
     if (!canUndoHistory) {
       return;
     }
-
-    setCurrentHistoryIndex(currentHistoryIndex - 1);
+    setCurrentHistoryIndex((preHistoryIndex) => preHistoryIndex - 1);
   };
 
   const canRedoHistory = () => {
