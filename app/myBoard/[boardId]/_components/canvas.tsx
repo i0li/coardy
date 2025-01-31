@@ -311,6 +311,8 @@ export const Canvas = ({ boardId }: CanvasProps) => {
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
+      history.resume();
+
       const point = pointerEventToCanvasPoint(e, camera);
 
       if (
@@ -331,8 +333,6 @@ export const Canvas = ({ boardId }: CanvasProps) => {
           mode: CanvasMode.None,
         });
       }
-
-      history.resume();
     },
     [
       canvasState.update,

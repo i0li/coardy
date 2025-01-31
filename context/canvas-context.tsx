@@ -193,7 +193,7 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const updateLayer = (id: string, layer: Layer) => {
-    const updatedLayers = layers;
+    const updatedLayers = new Map(layers);
     updatedLayers.set(id, layer);
     setLayers(updatedLayers);
 
@@ -203,7 +203,7 @@ const CanvasProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const deleteLayer = (id: string) => {
-    const deletedLayers = layers;
+    const deletedLayers = new Map(layers);
     deletedLayers.delete(id);
     setLayers(deletedLayers);
     addToHistory(deletedLayers);
